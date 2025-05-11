@@ -6,7 +6,6 @@ import multer from 'multer';
 import fs from 'fs';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import QRCode from 'qrcode';
-import { fromPath } from 'pdf2pic';
 import path from 'path';
 
 const app = express();
@@ -54,19 +53,9 @@ app.post('/process', upload.single('pdf'), async (req, res) => {
     const pdfPath = path.join(outputPath, 'final.pdf');
     fs.writeFileSync(pdfPath, modifiedPdf);
 
-    // 6. PNG rendern
-    const converter = fromPath(pdfPath, {
-      density: 300,
-      saveFilename: 'marker',
-      savePath: outputPath,
-      format: 'png',
-    });
-    await converter(1);
-
     res.status(200).json({
       markerId,
-      finalPdfPath: `/output/${markerId}/final.pdf`,
-      markerImagePath: `/output/${markerId}/marker_1.png`,
+      finalPdfPath: `/output/${markerId}/final.pdf`
     });
   } catch (error) {
     console.error(error);
@@ -79,3 +68,4 @@ function generateId() {
 }
 
 app.listen(PORT, () => console.log(`PDF Marker API läuft auf Port ${PORT}`));
+
