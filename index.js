@@ -68,4 +68,3 @@ function generateId() {
 }
 
 app.listen(PORT, () => console.log(`PDF Marker API läuft auf Port ${PORT}`));
-
