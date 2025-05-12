@@ -1,4 +1,4 @@
-// Railway Cloud Function: PDF-Verarbeitung + QR-Code-Einbettung (deploy-ready)
+// Railway Cloud Function: PDF-Verarbeitung + QR-Code-Einbettung + Supabase Upload + CORS
 // Umgebung: Node.js auf Railway mit Express-API
 
 import express from 'express';
@@ -7,10 +7,19 @@ import fs from 'fs';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import QRCode from 'qrcode';
 import path from 'path';
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+import cors from 'cors';
+
+dotenv.config();
 
 const app = express();
+app.use(cors());
 const upload = multer({ storage: multer.memoryStorage() });
 const PORT = process.env.PORT || 3000;
+
+// Supabase-Konfiguration
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 app.post('/process', upload.single('pdf'), async (req, res) => {
   try {
@@ -53,9 +62,24 @@ app.post('/process', upload.single('pdf'), async (req, res) => {
     const pdfPath = path.join(outputPath, 'final.pdf');
     fs.writeFileSync(pdfPath, modifiedPdf);
 
+    // 6. Supabase Upload
+    const fileData = fs.readFileSync(pdfPath);
+    const { data, error } = await supabase.storage
+      .from('pdfs')
+      .upload(`plans/${markerId}.pdf`, fileData, {
+        contentType: 'application/pdf',
+        upsert: true
+      });
+
+    if (error) {
+      throw error;
+    }
+
+    const { data: urlData } = supabase.storage.from('pdfs').getPublicUrl(`plans/${markerId}.pdf`);
+
     res.status(200).json({
       markerId,
-      finalPdfPath: `/output/${markerId}/final.pdf`
+      publicPdfUrl: urlData.publicUrl
     });
   } catch (error) {
     console.error(error);
