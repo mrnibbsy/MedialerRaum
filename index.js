@@ -16,12 +16,12 @@ dotenv.config();
 const app = express();
 app.use(cors());
 const upload = multer({ storage: multer.memoryStorage() });
-const PORT = process.env.PORT || 8080; // ← Port angepasst für Railway
+const PORT = process.env.PORT || 8080; // â† Port angepasst fÃ¼r Railway
 
 // Supabase-Konfiguration
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// Startseite für / Route
+// Startseite fÃ¼r / Route
 app.get('/', (req, res) => {
   res.send('<h1>PDF Marker API ist online</h1><p>Verwende <code>POST /process</code> zum Hochladen einer PDF-Datei.</p>');
 });
@@ -33,16 +33,13 @@ app.post('/process', upload.single('pdf'), async (req, res) => {
     const outputPath = path.join(__dirname, 'output', markerId);
     fs.mkdirSync(outputPath, { recursive: true });
 
-    // 1. QR-Code erzeugen
     const qrDataUrl = await QRCode.toDataURL(`https://yourapp.com/m/${markerId}`);
     const qrImage = Buffer.from(qrDataUrl.split(",")[1], 'base64');
 
-    // 2. PDF laden & modifizieren
     const pdfDoc = await PDFDocument.load(inputBuffer);
     const page = pdfDoc.getPage(0);
     const pngImage = await pdfDoc.embedPng(qrImage);
 
-    // 3. QR einbetten
     const { width, height } = page.getSize();
     const size = 100;
     page.drawImage(pngImage, {
@@ -52,7 +49,6 @@ app.post('/process', upload.single('pdf'), async (req, res) => {
       height: size,
     });
 
-    // 4. Marker-ID als Text
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     page.drawText(`Plan-ID: ${markerId}`, {
       x: 20,
@@ -62,12 +58,10 @@ app.post('/process', upload.single('pdf'), async (req, res) => {
       color: rgb(0, 0, 0),
     });
 
-    // 5. PDF speichern
     const modifiedPdf = await pdfDoc.save();
     const pdfPath = path.join(outputPath, 'final.pdf');
     fs.writeFileSync(pdfPath, modifiedPdf);
 
-    // 6. Supabase Upload
     const fileData = fs.readFileSync(pdfPath);
     const { data, error } = await supabase.storage
       .from('pdfs')
@@ -81,10 +75,15 @@ app.post('/process', upload.single('pdf'), async (req, res) => {
     }
 
     const { data: urlData } = supabase.storage.from('pdfs').getPublicUrl(`plans/${markerId}.pdf`);
+    const publicUrl = urlData?.publicUrl || null;
+
+    if (!publicUrl) {
+      return res.status(500).json({ message: 'Supabase-URL konnte nicht erzeugt werden.' });
+    }
 
     res.status(200).json({
       markerId,
-      publicPdfUrl: urlData.publicUrl
+      publicPdfUrl: publicUrl
     });
   } catch (error) {
     console.error(error);
@@ -96,4 +95,4 @@ function generateId() {
   return Math.random().toString(36).substring(2, 10).toUpperCase();
 }
 
-app.listen(PORT, () => console.log(`PDF Marker API läuft auf Port ${PORT}`));
+app.listen(PORT, () => console.log(`PDF Marker API lÃ¤uft auf Port ${PORT}`));
