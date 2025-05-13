@@ -16,10 +16,15 @@ dotenv.config();
 const app = express();
 app.use(cors());
 const upload = multer({ storage: multer.memoryStorage() });
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8080; // ← Port angepasst für Railway
 
 // Supabase-Konfiguration
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+
+// Startseite für / Route
+app.get('/', (req, res) => {
+  res.send('<h1>PDF Marker API ist online</h1><p>Verwende <code>POST /process</code> zum Hochladen einer PDF-Datei.</p>');
+});
 
 app.post('/process', upload.single('pdf'), async (req, res) => {
   try {
